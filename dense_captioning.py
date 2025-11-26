@@ -1,8 +1,5 @@
 from transformers import AutoModelForCausalLM, AutoProcessor, GenerationConfig
 from PIL import Image
-# import requests
-# from transformers.utils import logging
-# logging.set_verbosity_info()
 import os
 from glob import glob
 import random
