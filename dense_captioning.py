@@ -15,12 +15,6 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from tqdm import tqdm
 
-## For env variable
-HF_HUB_OFFLINE = os.getenv("HF_HUB_OFFLINE")
-HF_HOME = os.getenv("HF_HOME")
-print(f"HF_HUB_OFFLINE: {HF_HUB_OFFLINE}")
-print(f"HF_HOME: {HF_HOME}")
-
 @dataclass
 class ScriptArguments:
     dataset_name: str = field(
