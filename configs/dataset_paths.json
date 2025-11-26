@@ -1,0 +1,5 @@
+{
+    "r2s100k": "/home/phd_li/dataset/r2s100k/train",
+    "bdd100k": "/home/phd_li/dataset/bdd100k/images/10k/train",
+    "rdd": "/home/phd_li/dataset/RDD2022/train2017"
+}
