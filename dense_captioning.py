@@ -14,6 +14,8 @@ from pathlib import Path
 
 from dataclasses import dataclass, field
 from tqdm import tqdm
+from itertools import islice
+import copy
 
 @dataclass
 class ScriptArguments:
@@ -39,6 +41,14 @@ class ScriptArguments:
     seed: int = field(
         default=42,
         metadata={"help": "Random seed for reproducibility"}
+    )
+    chunk: int = field(
+        default=-1,
+        metadata={"help": "chunk the image list into <chunk>. (-1 means no chunk)"}
+    )
+    chunk_id: int = field(
+        default=-1,
+        metadata={"help": "process the <chunk_id>-th chunk."}
     )
     
     path_config_data: dict = field(init=False, repr=False)
@@ -79,7 +89,8 @@ def main():
     max_new_tokens = args.max_new_tokens
     image_count = args.image_count
     seed = args.seed
-    
+    chunk = args.chunk
+    chunk_id = args.chunk_id
     
     # load the processor
     processor = AutoProcessor.from_pretrained(
@@ -108,10 +119,25 @@ def main():
 
     random.seed(seed)
     
-    all_image_list = sorted(glob(os.path.join(base_path, '*.jpg')))
-    
+    # all_image_list = sorted(glob(os.path.join(base_path, '*.jpg')))
+    all_image_list = sorted(glob(os.path.join(base_path, '**', '*.jpg'), recursive=True)) + sorted(glob(os.path.join(base_path, '**', '*.png'), recursive=True))
+    print(f"There are totally {len(all_image_list)} images in {dataset}")
+
     if image_count == -1:
-        image_list = all_image_list
+        image_list = copy.deepcopy(all_image_list)
+        # image_list = all_image_list
+        pbar_desc = f"Generating Captions {dataset}"
+        if chunk != -1:
+            it = iter(all_image_list) 
+            n = len(all_image_list) // chunk
+            all_image_chunks = [list(islice(it, n)) for _ in range((len(all_image_list) + n - 1) // n)]
+            print(f"Successfully slice the all_image_list into {len(all_image_chunks)} chunks")
+            for i, small_chunk in enumerate(all_image_chunks):
+                print(f"Chunk {i}: {len(small_chunk)} samples")
+            assert chunk_id < len(all_image_chunks)
+            assert chunk_id >= 0
+            image_list = all_image_chunks[chunk_id]
+            pbar_desc += f" on chunk {chunk_id}"
     else:
         print(f"Randomly sample {image_count} / {len(image_list)} from {dataset}")
         actual_count = min(image_count, len(all_image_list))
@@ -119,7 +145,7 @@ def main():
 
     total_start_time = time.time()
 
-    pbar = tqdm(image_list, desc="Generating Captions")
+    pbar = tqdm(image_list, desc=pbar_desc)
     
     for image_path in pbar:
         iter_start_time = time.time()
@@ -163,10 +189,9 @@ def main():
         # print("*" * 30)
         # print(generated_text)
         # print()
-        
         caption = {
             "id": Path(image_path).stem,
-            "image": os.path.basename(image_path),
+            "image": str(Path(image_path).relative_to(base_path)),
             "conversations": [
             {
                 "from": "human",

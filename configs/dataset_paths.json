@@ -1,5 +1,10 @@
 {
     "r2s100k": "/home/phd_li/dataset/r2s100k/train",
     "bdd100k": "/home/phd_li/dataset/bdd100k/images/10k/train",
-    "rdd": "/home/phd_li/dataset/RDD2022/train2017"
+    "rdd": "/home/phd_li/dataset/RDD2022/train2017",
+    "cityscapes": "/home/phd_li/dataset/cityscapes/leftImg8bit/train",
+    "cityscapes_extra": "/home/phd_li/dataset/cityscapes/leftImg8bit/train_extra",
+    "mapillary": "/home/phd_li/dataset/mapillary/training/images",
+    "nuimages": "/home/phd_li/dataset/nuimages/samples/CAM_FRONT",
+    "waymo": "/home/phd_li/dataset/waymo/training/images"
 }
