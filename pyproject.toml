@@ -55,7 +55,6 @@ train = [
     "timm",
     "hf_transfer",
     "opencv-python",
-    "av",
     "decord",
     "tyro",
     "scipy",
@@ -81,6 +80,9 @@ exclude = [
     "mlx_configs*",
     "wandb*",
     "notebooks*",
+    "experiments*",
+    "dataset_subset*",
+    "configs*",
 ]
 
 [tool.wheel]
@@ -98,4 +100,7 @@ exclude = [
     "mlx_configs*",
     "wandb*",
     "notebooks*",
+    "experiments*",
+    "dataset_subset*",
+    "configs*",
 ]
