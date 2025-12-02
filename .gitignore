@@ -211,3 +211,8 @@ experiments
 how-to-configure-var-in-hpc-for-hf.md
 dataset_subset
 dataset_subset.zip
+
+build/
+.vscode
+checkpoints
+wandb
