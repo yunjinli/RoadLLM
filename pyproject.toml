@@ -58,6 +58,7 @@ train = [
     "decord",
     "tyro",
     "scipy",
+    "pandas==2.3.0"
 ]
 
 [project.urls]

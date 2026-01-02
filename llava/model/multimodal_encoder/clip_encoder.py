@@ -42,6 +42,7 @@ class CLIPVisionTower(nn.Module):
         self.vision_tower.requires_grad_(False)
 
         self.is_loaded = True
+        self.vision_tower = self.vision_tower.to(dtype=torch.float32)
 
     def feature_select(self, image_forward_outs):
         select_feature_type = self.select_feature
@@ -66,14 +67,29 @@ class CLIPVisionTower(nn.Module):
         return image_features
 
     def forward(self, images):
+        # when setting bf=false have bug here
+        # if type(images) is list:
+        #     image_features = []
+        #     for image in images:
+        #         image_forward_out = self.vision_tower(image.to(device=self.device, dtype=self.dtype).unsqueeze(0), output_hidden_states=True)
+        #         image_feature = self.feature_select(image_forward_out).to(image.dtype)
+        #         image_features.append(image_feature)
+        # else:
+        #     image_forward_outs = self.vision_tower(images.to(device=self.device, dtype=self.dtype), output_hidden_states=True)
+        #     image_features = self.feature_select(image_forward_outs).to(images.dtype)
+        # print(images.dtype)
+        if self.vision_tower.dtype != torch.float32:
+            # print("SHit")
+            self.vision_tower = self.vision_tower.to(dtype=torch.float32)
+        target_dtype = torch.float32 ## Set to fp16 specifically
         if type(images) is list:
             image_features = []
             for image in images:
-                image_forward_out = self.vision_tower(image.to(device=self.device, dtype=self.dtype).unsqueeze(0), output_hidden_states=True)
-                image_feature = self.feature_select(image_forward_out).to(image.dtype)
+                image_forward_out = self.vision_tower(image.to(device=self.device, dtype=target_dtype).unsqueeze(0), output_hidden_states=True)
+                image_feature = self.feature_select(image_forward_out).to(images.dtype)
                 image_features.append(image_feature)
         else:
-            image_forward_outs = self.vision_tower(images.to(device=self.device, dtype=self.dtype), output_hidden_states=True)
+            image_forward_outs = self.vision_tower(images.to(device=self.device, dtype=target_dtype), output_hidden_states=True)
             image_features = self.feature_select(image_forward_outs).to(images.dtype)
 
         return image_features
