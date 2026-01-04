@@ -21,6 +21,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, BitsAn
 import torch
 from llava.model import *
 from llava.constants import DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
+from llava.model.language_model.llava_qwen3 import LlavaQwen3ForCausalLM
 from llava.utils import rank0_print
 
 
@@ -149,11 +150,27 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
                 tokenizer = AutoTokenizer.from_pretrained(model_base, use_fast=False)
                 llava_cfg = LlavaConfig.from_pretrained(model_path)
                 model = LlavaLlamaForCausalLM.from_pretrained(model_base, low_cpu_mem_usage=True, config=llava_cfg, **kwargs)
+            elif "qwen3" in model_name.lower():
+                print("Loading Qwen3 based Llava model...")
+                from llava.model.language_model.llava_qwen3 import LlavaQwen3Config
+
+                tokenizer = AutoTokenizer.from_pretrained(model_base)
+                if customized_config is None:
+                    llava_cfg = LlavaQwen3Config.from_pretrained(model_path)
+                else:
+                    llava_cfg = customized_config
+
+                model = LlavaQwen3ForCausalLM.from_pretrained(model_base, low_cpu_mem_usage=True, config=llava_cfg, **kwargs)
             else:
                 raise ValueError(f"Model {model_name} not supported")
 
             mm_projector_weights = torch.load(os.path.join(model_path, "mm_projector.bin"), map_location="cpu")
-            mm_projector_weights = {k: v.to(torch.float16) for k, v in mm_projector_weights.items()}
+            if torch_dtype == "bfloat16":
+                mm_projector_weights = {k: v.to(torch.bfloat16) for k, v in mm_projector_weights.items()}
+            elif torch_dtype == "float16":
+                mm_projector_weights = {k: v.to(torch.float16) for k, v in mm_projector_weights.items()}
+            else:
+                raise ValueError("Only float16 and bfloat16 are supported for mm_projector weights")
             model.load_state_dict(mm_projector_weights, strict=False)
         else:
             rank0_print(f"Loaded LLaVA model: {model_path}")
@@ -215,7 +232,18 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
                         model = LlavaQwenMoeForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, config=llava_cfg, **kwargs)
                     else:
                         model = LlavaQwenMoeForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, **kwargs)
-
+                elif "qwen3" in model_name.lower():
+                    print("Loading Qwen3 based Llava model...")
+                    print(attn_implementation)
+                    from llava.model.language_model.llava_qwen3 import LlavaQwen3Config
+                    if overwrite_config is not None:
+                        llava_cfg = LlavaQwen3Config.from_pretrained(model_path)
+                        rank0_print(f"Overwriting config with {overwrite_config}")
+                        for k, v in overwrite_config.items():
+                            setattr(llava_cfg, k, v)
+                        model = LlavaQwen3ForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, config=llava_cfg, **kwargs)
+                    else:
+                        model = LlavaQwen3ForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, **kwargs)
                 else:
                     from llava.model.language_model.llava_qwen import LlavaQwenConfig
                     if overwrite_config is not None:
@@ -287,11 +315,20 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
         model.resize_token_embeddings(len(tokenizer))
 
         vision_tower = model.get_vision_tower()
+        print(f"[DEBUG] Vision Tower initially loaded? {vision_tower.is_loaded}. FORCING RELOAD.")
+        vision_tower.is_loaded = False
         if not vision_tower.is_loaded:
-            vision_tower.load_model(device_map=device_map)
+            target_dtype = kwargs.get("torch_dtype", torch.float16)
+            vision_tower.load_model(device_map=None)
+            vision_tower.to(device="cuda", dtype=target_dtype)
         if device_map != "auto":
-            vision_tower.to(device="cuda", dtype=torch.float16)
+            target_dtype = kwargs.get("torch_dtype", torch.float16)
+            vision_tower.to(device="cuda", dtype=target_dtype)
         image_processor = vision_tower.image_processor
+
+        ## Check CLIP weights
+        # for k, v in vision_tower.named_parameters():
+        #     print(f"Vision tower parameter: {k}, weight.mean(): {v.mean()}, dtype: {v.dtype}, device: {v.device}")
 
     if hasattr(model.config, "max_sequence_length"):
         context_len = model.config.max_sequence_length
