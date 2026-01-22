@@ -1,0 +1,3 @@
+command="TRANSFORMERS_CACHE=/home/phd_li/.cache/huggingface/hub HF_HUB_OFFLINE=1 python -m llava.serve.cli_roadllm --conv-mode qwen_3 --model-base Qwen/Qwen-8B --model-path /home/phd_li/git_repo/RoadLLM/checkpoints/projectors/roadllm-llava-openai_clip-vit-large-patch14-336-Qwen_Qwen3-8B-mlp2x_gelu-pretrain-full-4gpus --image-file /home/phd_li/git_repo/RoadLLM/dataset_subset/images/waymo/2114574223307001959_1163_280_1183_280_1506989644086363.png"
+
+bsub -Is -q gpu -gpu "num=1:j_exclusive=yes:gmem=40G" -R "select[type==X64LIN]" eval "${command}"
