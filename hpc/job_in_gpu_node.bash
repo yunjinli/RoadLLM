@@ -21,15 +21,15 @@ command="WANDB_MODE=offline TRANSFORMERS_CACHE=/home/phd_li/.cache/huggingface/h
     --mm_projector_type mlp2x_gelu \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \
-    --output_dir ./checkpoints/projectors/${BASE_RUN_NAME} \
+    --output_dir ./checkpoints/projectors/${BASE_RUN_NAME}-full \
     --num_train_epochs 1 \
     --per_device_train_batch_size 8 \
     --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 2 \
     --fp16 True \
-    --save_strategy "no" \
-    --save_steps 1000 \
-    --learning_rate 2e-5 \
+    --save_strategy "steps" \
+    --save_steps 100 \
+    --learning_rate 2e-3 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \

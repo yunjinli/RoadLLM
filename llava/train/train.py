@@ -1792,7 +1792,8 @@ def train(attn_implementation=None):
 
     data_module = make_supervised_data_module(tokenizer=tokenizer, data_args=data_args)
     trainer = LLaVATrainer(model=model, tokenizer=tokenizer, args=training_args, **data_module)
-
+    # for k, v in vision_tower.named_parameters():
+    #     print(f"Vision tower parameter: {k}, weight.mean(): {v.mean()}, dtype: {v.dtype}, device: {v.device}")
     if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
         trainer.train(resume_from_checkpoint=True)
     else:

@@ -69,32 +69,52 @@ class CLIPVisionTower(nn.Module):
     def forward(self, images):
         # when setting bf=true have bug here
         # But it works fine on my PC
-        if type(images) is list:
-            image_features = []
-            for image in images:
-                image_forward_out = self.vision_tower(image.to(device=self.device, dtype=self.dtype).unsqueeze(0), output_hidden_states=True)
-                image_feature = self.feature_select(image_forward_out).to(image.dtype)
-                image_features.append(image_feature)
-        else:
-            image_forward_outs = self.vision_tower(images.to(device=self.device, dtype=self.dtype), output_hidden_states=True)
-            image_features = self.feature_select(image_forward_outs).to(images.dtype)
-        # print(images.dtype)
-        # print(image_features.dtype)
-        # print(self.vision_tower.dtype)
-        
-        # On HPC, have to cast to fp32 to avoid bf16 matmul issue, don't know why
-        # if self.vision_tower.dtype != torch.float32:
-        #     self.vision_tower = self.vision_tower.to(dtype=torch.float32)
-        # target_dtype = torch.float32 ## Set to fp32 specifically
         # if type(images) is list:
         #     image_features = []
         #     for image in images:
-        #         image_forward_out = self.vision_tower(image.to(device=self.device, dtype=target_dtype).unsqueeze(0), output_hidden_states=True)
-        #         image_feature = self.feature_select(image_forward_out).to(images.dtype)
+        #         image_forward_out = self.vision_tower(image.to(device=self.device, dtype=self.dtype).unsqueeze(0), output_hidden_states=True)
+        #         image_feature = self.feature_select(image_forward_out).to(image.dtype)
         #         image_features.append(image_feature)
         # else:
-        #     image_forward_outs = self.vision_tower(images.to(device=self.device, dtype=target_dtype), output_hidden_states=True)
+        #     image_forward_outs = self.vision_tower(images.to(device=self.device, dtype=self.dtype), output_hidden_states=True)
         #     image_features = self.feature_select(image_forward_outs).to(images.dtype)
+
+        # Disable AMP during forward pass
+        # Prevent crash on L40/Ada by forcing FP32 execution context
+        # This keeps weights in bf16/fp16 but runs the specific op in fp32
+
+        # 1. Disable autocast so PyTorch doesn't force it back to bf16
+        # with torch.autocast(device_type=self.device.type, enabled=False):
+        #     if type(images) is list:
+        #         image_features = []
+        #         for image in images:
+        #             # 2. Manually cast input image to float32
+        #             image_input = image.to(device=self.device, dtype=torch.float32).unsqueeze(0)
+
+        #             # 3. Forward pass runs in FP32
+        #             image_forward_out = self.vision_tower(image_input, output_hidden_states=True)
+
+        #             # 4. Cast output back to original dtype (bf16) for the rest of the model
+        #             image_feature = self.feature_select(image_forward_out).to(self.dtype)
+        #             image_features.append(image_feature)
+        #     else:
+        #         image_input = images.to(device=self.device, dtype=torch.float32)
+        #         image_forward_outs = self.vision_tower(image_input, output_hidden_states=True)
+        #         image_features = self.feature_select(image_forward_outs).to(self.dtype)
+        
+        # On HPC, have to cast to fp32 to avoid bf16 matmul issue, don't know why
+        if self.vision_tower.dtype != torch.float32:
+            self.vision_tower = self.vision_tower.to(dtype=torch.float32)
+        target_dtype = torch.float32 ## Set to fp32 specifically
+        if type(images) is list:
+            image_features = []
+            for image in images:
+                image_forward_out = self.vision_tower(image.to(device=self.device, dtype=target_dtype).unsqueeze(0), output_hidden_states=True)
+                image_feature = self.feature_select(image_forward_out).to(images.dtype)
+                image_features.append(image_feature)
+        else:
+            image_forward_outs = self.vision_tower(images.to(device=self.device, dtype=target_dtype), output_hidden_states=True)
+            image_features = self.feature_select(image_forward_outs).to(images.dtype)
 
         return image_features
 

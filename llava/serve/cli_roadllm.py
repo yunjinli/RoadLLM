@@ -75,6 +75,7 @@ def main(args):
     # 3. Set the Chat Template manually (Matches your train.py)
     tokenizer.chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
     history = [{"role": "system", "content": "You are a helpful assistant."}]
+    # history = [{"role": "system", "content": "You are a helpful assistant. /think"}]
     
     print(f"Tokenizer Vocab Size: {len(tokenizer)}")
     print(f"Model Embedding Size: {model.get_input_embeddings().weight.shape[0]}")
@@ -107,7 +108,7 @@ def main(args):
         # print(history)
         print(input_ids.shape)
         
-        streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+        streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=False)
         # Note: stopping criteria is less strict here for simplicity, relying on EOS token
 
         print("RoadLLM: ", end="")
@@ -125,7 +126,7 @@ def main(args):
                 pad_token_id=tokenizer.eos_token_id 
             )
 
-        outputs = tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True).strip()
+        outputs = tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=False).strip()
         
         # Add assistant response to history
         history.append({"role": "assistant", "content": outputs})
@@ -145,7 +146,7 @@ if __name__ == "__main__":
     parser.add_argument("--num-gpus", type=int, default=1)
     parser.add_argument("--conv-mode", type=str, default=None)
     parser.add_argument("--temperature", type=float, default=0.2)
-    parser.add_argument("--max-new-tokens", type=int, default=1024)
+    parser.add_argument("--max-new-tokens", type=int, default=4096)
     parser.add_argument("--load-8bit", action="store_true")
     parser.add_argument("--load-4bit", action="store_true")
     parser.add_argument("--debug", action="store_true")
