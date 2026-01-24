@@ -46,9 +46,6 @@ def main(args):
     else:
         args.conv_mode = conv_mode
 
-    # Setup conversation
-    conv = conv_templates[args.conv_mode].copy()
-    
     # Process Image
     image = load_image(args.image_file)
     if args.dtype == "float16":
@@ -56,17 +53,16 @@ def main(args):
     elif args.dtype == "bfloat16":
         image_tensor = image_processor.preprocess(image, return_tensors="pt")["pixel_values"].bfloat16().cuda()
     else:
-        # Default fallback
         image_tensor = image_processor.preprocess(image, return_tensors="pt")["pixel_values"].cuda()
 
-    # Handle Special Tokens
+    # Handle Special Tokens (Copied from cli_roadllm.py)
     tokenizer = copy.deepcopy(tokenizer)
     if "<image>" not in tokenizer.get_vocab():
         tokenizer.add_tokens(["<image>"], special_tokens=True)
     if "<|im_start|>" not in tokenizer.get_vocab():
         tokenizer.add_tokens(["<|im_start|>", "<|im_end|>"], special_tokens=True)
 
-    # Set Chat Template
+    # Set Chat Template manually
     tokenizer.chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
     # Prepare Prompt
@@ -86,32 +82,48 @@ def main(args):
     input_ids = input_ids.to(device=model.device)
     attention_mask = torch.ones_like(input_ids, device=input_ids.device).bool()
 
+    print(f"Input Token Shape: {input_ids.shape}")
+
     # Generate
     with torch.inference_mode():
         output_ids = model.generate(
             input_ids,
             images=image_tensor,
             attention_mask=attention_mask,
-            do_sample=True, # You can change to False for deterministic output
+            do_sample=True,
             temperature=args.temperature,
             max_new_tokens=args.max_new_tokens,
             use_cache=True,
             pad_token_id=tokenizer.eos_token_id 
         )
 
-    outputs = tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=False).strip()
+    # ROBUST DECODING STRATEGY
+    # 1. Decode the entire sequence (Prompt + Response)
+    full_text = tokenizer.decode(output_ids[0], skip_special_tokens=False)
+    
+    # 2. Split by the assistant header to isolate the response
+    # The template adds "<|im_start|>assistant\n" right before generation
+    if "<|im_start|>assistant\n" in full_text:
+        # Take the last part (in case the prompt itself contained this string, which is unlikely but safe)
+        outputs = full_text.split("<|im_start|>assistant\n")[-1]
+    else:
+        # Fallback: strict slicing if the string split fails
+        outputs = tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=False)
+
+    # 3. Clean up the end token and whitespace
+    outputs = outputs.replace("<|im_end|>", "").strip()
+    
     print(f"Model: {model_name}\nOutput: {outputs}\n")
 
     # Save to JSON
     result_entry = {
-        "model_size": args.model_alias, # passed from bash script for easy ID
+        "model_size": args.model_alias,
         "model_path": args.model_path,
         "prompt": args.prompt,
         "image_file": args.image_file,
         "response": outputs
     }
 
-    # If output file exists, append to list; otherwise create new list
     if os.path.exists(args.output_file):
         with open(args.output_file, 'r') as f:
             try:
@@ -133,13 +145,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, required=True)
     parser.add_argument("--model-base", type=str, default=None)
-    parser.add_argument("--model-alias", type=str, default="unknown", help="Alias like 0.6B, 8B etc")
+    parser.add_argument("--model-alias", type=str, default="unknown")
     parser.add_argument("--image-file", type=str, required=True)
     parser.add_argument("--prompt", type=str, default="Describe the image")
     parser.add_argument("--output-file", type=str, default="results.json")
     parser.add_argument("--conv-mode", type=str, default="qwen_3")
     parser.add_argument("--temperature", type=float, default=0.2)
-    parser.add_argument("--max-new-tokens", type=int, default=1024)
+    parser.add_argument("--max-new-tokens", type=int, default=4096)
     parser.add_argument("--dtype", type=str, default="bfloat16")
     parser.add_argument("--load-8bit", action="store_true")
     parser.add_argument("--load-4bit", action="store_true")
