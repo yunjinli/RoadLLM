@@ -31,7 +31,7 @@ def main(args):
         args.load_8bit, args.load_4bit, torch_dtype=args.dtype
     )
 
-    # Determine conversation mode
+    # Determine conversation mode (Logic from cli_roadllm.py)
     if "llama-2" in model_name.lower():
         conv_mode = "llava_llama_2"
     elif "v1" in model_name.lower():
@@ -55,7 +55,7 @@ def main(args):
     else:
         image_tensor = image_processor.preprocess(image, return_tensors="pt")["pixel_values"].cuda()
 
-    # Handle Special Tokens (Copied from cli_roadllm.py)
+    # Handle Special Tokens (Exact logic from cli_roadllm.py)
     tokenizer = copy.deepcopy(tokenizer)
     if "<image>" not in tokenizer.get_vocab():
         tokenizer.add_tokens(["<image>"], special_tokens=True)
@@ -97,22 +97,14 @@ def main(args):
             pad_token_id=tokenizer.eos_token_id 
         )
 
-    # ROBUST DECODING STRATEGY
-    # 1. Decode the entire sequence (Prompt + Response)
-    full_text = tokenizer.decode(output_ids[0], skip_special_tokens=False)
+    # STRICT SLICING STRATEGY (Matches cli_roadllm.py)
+    # We slice off exactly the number of tokens in the input
+    outputs = tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True).strip()
     
-    # 2. Split by the assistant header to isolate the response
-    # The template adds "<|im_start|>assistant\n" right before generation
-    if "<|im_start|>assistant\n" in full_text:
-        # Take the last part (in case the prompt itself contained this string, which is unlikely but safe)
-        outputs = full_text.split("<|im_start|>assistant\n")[-1]
-    else:
-        # Fallback: strict slicing if the string split fails
-        outputs = tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=False)
+    # Debug: Print full raw text if needed for inspection
+    # full_text = tokenizer.decode(output_ids[0], skip_special_tokens=False)
+    # print(f"DEBUG Full Text:\n{full_text}\n{'='*20}")
 
-    # 3. Clean up the end token and whitespace
-    outputs = outputs.replace("<|im_end|>", "").strip()
-    
     print(f"Model: {model_name}\nOutput: {outputs}\n")
 
     # Save to JSON
