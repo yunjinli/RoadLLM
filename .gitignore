@@ -216,3 +216,7 @@ build/
 .vscode
 checkpoints
 wandb
+
+pretrained*.json
+pretrained.json
+comparison_results.json

@@ -99,10 +99,10 @@ def main(args):
 
     # STRICT SLICING STRATEGY (Matches cli_roadllm.py)
     # We slice off exactly the number of tokens in the input
-    outputs = tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True).strip()
+    # outputs = tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True).strip()
     
     # Debug: Print full raw text if needed for inspection
-    # full_text = tokenizer.decode(output_ids[0], skip_special_tokens=False)
+    outputs = tokenizer.decode(output_ids[0], skip_special_tokens=False)
     # print(f"DEBUG Full Text:\n{full_text}\n{'='*20}")
 
     print(f"Model: {model_name}\nOutput: {outputs}\n")
