@@ -13,6 +13,7 @@ def parse_args():
         "--config_path", 
         type=str, 
         required=True,
+        default="./configs/dataset_paths.json",
         help="Path to the dataset_paths.json config file."
     )
     parser.add_argument(
@@ -31,12 +32,13 @@ def parse_args():
         "--instructions_path", 
         type=str, 
         required=True,
+        default="./configs/detailed_image_description_instructions.json",
         help="Path to the JSON file containing the list of instructions."
     )
     parser.add_argument(
         "--output_path", 
         type=str, 
-        default="./pretrained.json",
+        default="./configs/pretrained.json",
         help="Path where the output JSON will be saved."
     )
     parser.add_argument(
