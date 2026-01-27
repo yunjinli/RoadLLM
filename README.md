@@ -1,5 +1,7 @@
 # RoadLLM
 
+## Installation
+
 ```
 git clone https://github.com/yunjinli/RoadLLM.git
 cd RoadLLM
@@ -9,6 +11,10 @@ conda activate llava
 pip install --upgrade pip  # Enable PEP 660 support.
 pip install -e ".[train]"
 ```
+
+## Preparing the Datasets
+
+Please see [here](./docs/dataset.md).
 
 ## Acknowledgement
 
